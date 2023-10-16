@@ -4,11 +4,11 @@ var themeColor = const Color.fromARGB(255, 230, 255, 231);
 var secondaryColor = Color.fromARGB(255, 255, 233, 185);
 
 ThemeData lightTheme = ThemeData(
-    useMaterial3: true,
-    brightness: Brightness.light,
-    colorSchemeSeed: themeColor,
-    navigationBarTheme: NavigationBarThemeData(indicatorColor: secondaryColor),
-    listTileTheme: ListTileThemeData(tileColor: secondaryColor));
+  useMaterial3: true,
+  brightness: Brightness.light,
+  colorSchemeSeed: themeColor,
+  navigationBarTheme: NavigationBarThemeData(indicatorColor: secondaryColor),
+);
 
 ThemeData darkTheme = ThemeData(
   useMaterial3: true,

@@ -569,8 +569,6 @@ class Profile extends StatefulWidget {
 }
 
 class _ProfileState extends State<Profile> {
-  String newFollowID = "";
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -589,49 +587,20 @@ class _ProfileState extends State<Profile> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text("Follows: "),
-            Row(
-              children: [
-                Text("#"),
-                SizedBox(
-                  width: 50,
-                  child: TextField(
-                    onChanged: (value) => setState(() {
-                      newFollowID = value;
-                    }),
-                    maxLength: 5,
-                    decoration: InputDecoration(counterText: ""),
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-              ],
-            ),
-            FilledButton.tonalIcon(
-              onPressed: () async {
-                final scaffold = ScaffoldMessenger.of(context);
-
-                try {
-                  await newFollow(currentUser, int.parse(newFollowID));
-                } catch (e) {
-                  scaffold.showSnackBar(
-                    SnackBar(
-                      content: Text("Something went wrong"),
-                    ),
-                  );
-                }
-                final temp = await getFollows(currentUser);
-                setState(() {
-                  follows = temp;
-                });
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (context) => AddFollow()))
+                    .then((value) => setState(
+                          () {},
+                        ));
               },
               icon: Icon(Icons.add),
-              label: Text("New follow"),
+              label: Text("Add follow"),
             ),
           ],
         ),
-        SizedBox(
-          height: 350,
-          width: 200,
+        Expanded(
           child: ListView.builder(
             itemCount: follows.length,
             itemBuilder: (context, index) {
@@ -667,6 +636,144 @@ class _ProfileState extends State<Profile> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class AddFollow extends StatefulWidget {
+  const AddFollow({super.key});
+
+  @override
+  State<AddFollow> createState() => _AddFollowState();
+}
+
+class _AddFollowState extends State<AddFollow> {
+  String newFollowID = "";
+  String searchName = "";
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("New follow"),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.of(context).pop();
+            setState(() {
+              follows;
+            });
+          },
+        ),
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text("Add by #:"),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text("#"),
+              SizedBox(
+                width: 50,
+                child: TextField(
+                  onChanged: (value) => setState(() {
+                    newFollowID = value;
+                  }),
+                  maxLength: 5,
+                  decoration: InputDecoration(counterText: ""),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  keyboardType: TextInputType.number,
+                ),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: () async {
+                  final scaffold = ScaffoldMessenger.of(context);
+
+                  try {
+                    await newFollow(currentUser, int.parse(newFollowID));
+                  } catch (e) {
+                    scaffold.showSnackBar(
+                      SnackBar(
+                        content: Text("Something went wrong"),
+                      ),
+                    );
+                  }
+                  final temp = await getFollows(currentUser);
+                  setState(() {
+                    follows = temp;
+                  });
+                },
+                icon: Icon(Icons.add),
+                label: Text("New follow"),
+              ),
+            ],
+          ),
+          Divider(),
+          SizedBox(
+            width: 300,
+            child: TextField(
+              onChanged: (value) => setState(() {
+                searchName = value;
+              }),
+              decoration: InputDecoration(
+                label: Text("Username"),
+                suffixIcon: Icon(
+                  Icons.search,
+                ),
+              ),
+            ),
+          ),
+          searchName.isEmpty
+              ? Text("Enter a username above to search")
+              : FutureBuilder(
+                  future: searchUsers(searchName),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      if (snapshot.data!.isEmpty) {
+                        return Text("No matches");
+                      }
+                      return Expanded(
+                        child: ListView.builder(
+                          itemCount: snapshot.data!.length,
+                          itemBuilder: (context, index) {
+                            final acc = snapshot.data![index];
+                            return Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Material(
+                                child: ListTile(
+                                  title: Text("${acc.username}#${acc.uid}"),
+                                  tileColor: Colors.amber[100],
+                                  trailing: (follows.any(
+                                          (element) => element.uid == acc.uid))
+                                      ? IconButton.outlined(
+                                          onPressed: () {},
+                                          icon: Icon(Icons.check),
+                                        )
+                                      : IconButton.filledTonal(
+                                          icon: Icon(Icons.add),
+                                          onPressed: () async {
+                                            await newFollow(
+                                                currentUser, acc.uid);
+                                            final temp =
+                                                await getFollows(currentUser);
+                                            setState(() {
+                                              follows = temp;
+                                            });
+                                          },
+                                        ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    }
+                    return CircularProgressIndicator();
+                  },
+                )
+        ],
+      ),
     );
   }
 }

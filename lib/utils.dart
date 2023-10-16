@@ -87,3 +87,17 @@ Future<void> newFollow(Account currentUser, int newFollow) async {
       .from("follows")
       .insert({"uid": currentUser.uid, "fid": newFollow});
 }
+
+Future<List<Account>> searchUsers(String search) async {
+  List<Account> follows = List.empty(growable: true);
+  await Future.delayed(
+    Duration(milliseconds: 500),
+  );
+  final data =
+      await supabase.from("users").select().ilike("username", "%$search%");
+  for (var user in data) {
+    follows.add(Account(user["uid"], user["username"], user["displayname"]));
+  }
+
+  return follows;
+}
