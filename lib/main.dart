@@ -451,7 +451,18 @@ class _HomePageState extends State<HomePage> {
       floatingActionButton: selectedPage == 2
           ? Container()
           : FloatingActionButton(
-              onPressed: () {},
+              onPressed: () async {
+                try {
+                  await addPoop(
+                      Poop(LatLng(57, 10), 4, currentUser, DateTime.now()));
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Something went wrong, poop not submitted"),
+                    ),
+                  );
+                }
+              },
               child: Icon(Icons.add),
             ),
     );
@@ -536,28 +547,38 @@ class MapView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FlutterMap(
-        options: MapOptions(
-          interactionOptions: InteractionOptions(
-            flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-          ),
-        ),
-        children: [
-          TileLayer(
-            maxNativeZoom: 20,
-            urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-          ),
-          MarkerLayer(
-            markers: [
-              Marker(
-                point: LatLng(57.0469, 9.9431),
-                width: 80,
-                height: 80,
-                child: Text("💩", textScaleFactor: 2),
+    return Stack(
+      children: [
+        FlutterMap(
+            options: MapOptions(
+              interactionOptions: InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
-            ],
-          ),
-        ]);
+            ),
+            children: [
+              TileLayer(
+                maxNativeZoom: 20,
+                urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: LatLng(57.0469, 9.9431),
+                    width: 80,
+                    height: 80,
+                    child: Text("💩", textScaleFactor: 2),
+                  ),
+                ],
+              ),
+            ]),
+        FilledButton(
+          onPressed: () async {
+            await getPoops();
+          },
+          child: Text("Load poop list"),
+        ),
+      ],
+    );
   }
 }
 

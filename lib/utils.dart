@@ -1,5 +1,7 @@
 import 'package:hcl_poop_map/main.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Account {
   int uid;
@@ -7,6 +9,15 @@ class Account {
   String displayname;
 
   Account(this.uid, this.username, this.displayname);
+}
+
+class Poop {
+  LatLng location;
+  int rating;
+  Account user;
+  DateTime time;
+
+  Poop(this.location, this.rating, this.user, this.time);
 }
 
 Future<Account> newUser(String username, String password) async {
@@ -100,4 +111,30 @@ Future<List<Account>> searchUsers(String search) async {
   }
 
   return follows;
+}
+
+Future<void> addPoop(Poop poop) async {
+  await supabase.from("poops").insert({
+    "lat": poop.location.latitude,
+    "lon": poop.location.longitude,
+    "rating": poop.rating,
+    "uid": poop.user.uid
+  });
+}
+
+Future<List<Poop>> getPoops() async {
+  List<Poop> poops = List.empty(growable: true);
+  final data = await supabase.from("poops_view").select();
+  for (var poop in data) {
+    final temp = Poop(
+        LatLng(
+          (poop["lat"] + 0.0),
+          (poop["lon"] + 0.0),
+        ),
+        poop["rating"],
+        Account(poop["uid"], poop["username"], poop["displayname"]),
+        DateTime.parse(poop["time"]));
+  }
+
+  return poops;
 }
