@@ -124,7 +124,7 @@ Future<void> addPoop(Poop poop) async {
 
 Future<List<Poop>> getPoops() async {
   List<Poop> poops = List.empty(growable: true);
-  final data = await supabase.from("poops_view").select();
+  final data = await supabase.from("poops_view").select().order("time");
   for (var poop in data) {
     final temp = Poop(
         LatLng(
@@ -134,6 +134,7 @@ Future<List<Poop>> getPoops() async {
         poop["rating"],
         Account(poop["uid"], poop["username"], poop["displayname"]),
         DateTime.parse(poop["time"]));
+    poops.add(temp);
   }
 
   return poops;

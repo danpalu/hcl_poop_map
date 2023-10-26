@@ -26,6 +26,7 @@ Future<void> main() async {
 final supabase = Supabase.instance.client;
 late Account currentUser;
 List<Account> follows = List.empty(growable: true);
+List<Poop> friendsPoop = List.empty(growable: true);
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
@@ -452,11 +453,17 @@ class _HomePageState extends State<HomePage> {
           ? Container()
           : FloatingActionButton(
               onPressed: () async {
+                final scaffoldMes = ScaffoldMessenger.of(context);
                 try {
-                  await addPoop(
-                      Poop(LatLng(57, 10), 4, currentUser, DateTime.now()));
+                  final newPoop =
+                      Poop(LatLng(57, 10), 4, currentUser, DateTime.now());
+                  await addPoop(newPoop);
+                  friendsPoop.add(newPoop);
+                  setState(() {
+                    friendsPoop;
+                  });
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMes.showSnackBar(
                     SnackBar(
                       content: Text("Something went wrong, poop not submitted"),
                     ),
@@ -469,76 +476,121 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class HomeFeed extends StatelessWidget {
+class HomeFeed extends StatefulWidget {
   const HomeFeed({super.key});
 
   @override
+  State<HomeFeed> createState() => _HomeFeedState();
+}
+
+class _HomeFeedState extends State<HomeFeed> {
+  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
+    return ListView(children: [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(Icons.gps_fixed),
-                    Text(
-                      " Recent poops near you",
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ],
+                Icon(Icons.people_alt),
+                Text(
+                  " Friends recent poops",
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                IconButton(onPressed: () {}, icon: Icon(Icons.arrow_forward))
               ],
             ),
-          ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
+            IconButton(onPressed: () {}, icon: Icon(Icons.arrow_forward))
+          ],
+        ),
+      ),
+      FutureBuilder(
+        future: getPoops(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            friendsPoop = snapshot.data!;
+            final List<Widget> list = List.empty(growable: true);
+            final length = (friendsPoop.length < 4) ? friendsPoop.length : 4;
+            for (var i = 0; i < length; i++) {
+              final temp = friendsPoop[i];
+              final poopCard = Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(
-                        Icons.person_4,
-                        size: 70,
-                      ),
-                      SizedBox(
-                        width: 12,
-                      ),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        mainAxisSize: MainAxisSize.max,
+                      Row(
                         children: [
-                          Text("5 m 33 s ago"),
-                          Text("Name Of User"),
+                          Icon(
+                            Icons.person_4,
+                            size: 70,
+                          ),
+                          SizedBox(
+                            width: 12,
+                          ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisSize: MainAxisSize.max,
+                            children: [
+                              Text(
+                                  "${DateTime.now().difference(temp.time).inMinutes} minutes ago"),
+                              Text(temp.user.displayname),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          for (int i = 0; i < 5; i++)
+                            (i < temp.rating)
+                                ? Icon(
+                                    Icons.star,
+                                    color: Colors.amber,
+                                  )
+                                : Icon(
+                                    Icons.star_border,
+                                    color: Colors.amber,
+                                  )
                         ],
                       ),
                     ],
                   ),
-                  Row(
-                    children: [
-                      Icon(Icons.star),
-                      Icon(Icons.star),
-                      Icon(Icons.star),
-                      Icon(Icons.star),
-                      Icon(Icons.star),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          )
-        ],
+                ),
+              );
+              list.add(poopCard);
+            }
+
+            return Column(
+              children: list,
+            );
+          }
+          return CircularProgressIndicator();
+        },
       ),
-    );
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(Icons.people_alt),
+                Text(
+                  " Friends recent poops",
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+              ],
+            ),
+            IconButton(onPressed: () {}, icon: Icon(Icons.arrow_forward))
+          ],
+        ),
+      ),
+    ]);
   }
 }
 
@@ -559,6 +611,7 @@ class MapView extends StatelessWidget {
               TileLayer(
                 maxNativeZoom: 20,
                 urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                fallbackUrl: "",
               ),
               MarkerLayer(
                 markers: [
@@ -566,14 +619,15 @@ class MapView extends StatelessWidget {
                     point: LatLng(57.0469, 9.9431),
                     width: 80,
                     height: 80,
-                    child: Text("💩", textScaleFactor: 2),
+                    child: Text("💩",
+                        textScaleFactor: 2, textAlign: TextAlign.center),
                   ),
                 ],
               ),
             ]),
         FilledButton(
           onPressed: () async {
-            await getPoops();
+            friendsPoop = await getPoops();
           },
           child: Text("Load poop list"),
         ),
@@ -707,7 +761,7 @@ class _AddFollowState extends State<AddFollow> {
                   keyboardType: TextInputType.number,
                 ),
               ),
-              FilledButton.tonalIcon(
+              IconButton.outlined(
                 onPressed: () async {
                   final scaffold = ScaffoldMessenger.of(context);
 
@@ -726,7 +780,6 @@ class _AddFollowState extends State<AddFollow> {
                   });
                 },
                 icon: Icon(Icons.add),
-                label: Text("New follow"),
               ),
             ],
           ),
