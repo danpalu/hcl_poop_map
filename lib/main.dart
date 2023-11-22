@@ -19,6 +19,7 @@ Future<void> main() async {
     anonKey:
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2Z3p1emVnd2RzaGh6c2VzemtmIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTcxMTA4MTksImV4cCI6MjAxMjY4NjgxOX0.Nlm5I3i0h26N3fzMSmgfqF5ubVbsU9JZwqf3GgXmKR8",
   );
+  lastPosition = await getLastLocation();
 
   runApp(const MainApp());
 }
@@ -27,6 +28,7 @@ final supabase = Supabase.instance.client;
 late Account currentUser;
 List<Account> follows = List.empty(growable: true);
 List<Poop> friendsPoop = List.empty(growable: true);
+LatLng lastPosition = LatLng(0, 0);
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
@@ -453,22 +455,14 @@ class _HomePageState extends State<HomePage> {
           ? Container()
           : FloatingActionButton(
               onPressed: () async {
-                final scaffoldMes = ScaffoldMessenger.of(context);
-                try {
-                  final newPoop =
-                      Poop(LatLng(57, 10), 4, currentUser, DateTime.now());
-                  await addPoop(newPoop);
-                  friendsPoop.add(newPoop);
-                  setState(() {
-                    friendsPoop;
-                  });
-                } catch (e) {
-                  scaffoldMes.showSnackBar(
-                    SnackBar(
-                      content: Text("Something went wrong, poop not submitted"),
-                    ),
-                  );
-                }
+                final navigator = Navigator.of(context);
+                await getPosition();
+                lastPosition = await getLastLocation();
+                navigator.push(
+                  MaterialPageRoute(
+                    builder: (context) => AddPoop(),
+                  ),
+                );
               },
               child: Icon(Icons.add),
             ),
@@ -513,7 +507,10 @@ class _HomeFeedState extends State<HomeFeed> {
           if (snapshot.hasData) {
             friendsPoop = snapshot.data!;
             final List<Widget> list = List.empty(growable: true);
-            final length = (friendsPoop.length < 4) ? friendsPoop.length : 4;
+            const numberShown = 8;
+            final length = (friendsPoop.length < numberShown)
+                ? friendsPoop.length
+                : numberShown;
             for (var i = 0; i < length; i++) {
               final temp = friendsPoop[i];
               final poopCard = Card(
@@ -847,6 +844,24 @@ class _AddFollowState extends State<AddFollow> {
                   },
                 )
         ],
+      ),
+    );
+  }
+}
+
+class AddPoop extends StatefulWidget {
+  const AddPoop({super.key});
+
+  @override
+  State<AddPoop> createState() => _AddPoopState();
+}
+
+class _AddPoopState extends State<AddPoop> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Add poop 💩"),
       ),
     );
   }

@@ -1,7 +1,7 @@
 import 'package:hcl_poop_map/main.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 class Account {
   int uid;
@@ -45,6 +45,19 @@ Future<Account> getLocalUser() async {
   String uname = prefs.getString("username") ?? "";
   String dname = prefs.getString("displayname") ?? "";
   return Account(uid, uname, dname);
+}
+
+Future<LatLng> getLastLocation() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  double lat = prefs.getDouble("lat") ?? 0;
+  double lon = prefs.getDouble("lon") ?? 0;
+  return LatLng(lat, lon);
+}
+
+Future<void> saveLastLocation(Position location) async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  prefs.setDouble("lat", location.latitude);
+  prefs.setDouble("lon", location.longitude);
 }
 
 Future<void> logOut() async {
@@ -138,4 +151,43 @@ Future<List<Poop>> getPoops() async {
   }
 
   return poops;
+}
+
+Future<Position> getPosition() async {
+  bool serviceEnabled;
+  LocationPermission permission;
+
+  // Test if location services are enabled.
+  serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    // Location services are not enabled don't continue
+    // accessing the position and request users of the
+    // App to enable the location services.
+    return Future.error('Location services are disabled.');
+  }
+
+  permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      // Permissions are denied, next time you could try
+      // requesting permissions again (this is also where
+      // Android's shouldShowRequestPermissionRationale
+      // returned true. According to Android guidelines
+      // your App should show an explanatory UI now.
+      return Future.error('Location permissions are denied');
+    }
+  }
+
+  if (permission == LocationPermission.deniedForever) {
+    // Permissions are denied forever, handle appropriately.
+    return Future.error(
+        'Location permissions are permanently denied, we cannot request permissions.');
+  }
+
+  // When we reach here, permissions are granted and we can
+  // continue accessing the position of the device.
+  final position = await Geolocator.getCurrentPosition();
+  saveLastLocation(position);
+  return position;
 }
