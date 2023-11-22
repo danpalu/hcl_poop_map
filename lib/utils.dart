@@ -2,6 +2,7 @@ import 'package:hcl_poop_map/main.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:crypt/crypt.dart';
 
 class Account {
   int uid;
@@ -21,9 +22,10 @@ class Poop {
 }
 
 Future<Account> newUser(String username, String password) async {
+  String hash = Crypt.sha256(password).toString();
   var user = await supabase.from("users").insert({
     "username": username,
-    "password": password,
+    "password": hash,
     "displayname": username
   }).select();
   Account acc =
@@ -71,6 +73,7 @@ Future<void> saveLogIn() async {
 }
 
 Future<Account> logIn(String username, String password) async {
+  String hash = Crypt.sha256(password).toString();
   final data = await supabase
       .from("users")
       .select()
@@ -190,4 +193,22 @@ Future<Position> getPosition() async {
   final position = await Geolocator.getCurrentPosition();
   saveLastLocation(position);
   return position;
+}
+
+Future<List<Poop>> getFriendsPoops(Account currentUser) async {
+  List<Poop> poops = List.empty(growable: true);
+  final data = await supabase.from("poops_view").select().order("time");
+  for (var poop in data) {
+    final temp = Poop(
+        LatLng(
+          (poop["lat"] + 0.0),
+          (poop["lon"] + 0.0),
+        ),
+        poop["rating"],
+        Account(poop["uid"], poop["username"], poop["displayname"]),
+        DateTime.parse(poop["time"]));
+    poops.add(temp);
+  }
+
+  return poops;
 }

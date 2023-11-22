@@ -490,9 +490,9 @@ class _HomeFeedState extends State<HomeFeed> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(Icons.people_alt),
+                Icon(Icons.explore),
                 Text(
-                  " Friends recent poops",
+                  " Explore",
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ],
@@ -566,26 +566,6 @@ class _HomeFeedState extends State<HomeFeed> {
           }
           return CircularProgressIndicator();
         },
-      ),
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Icon(Icons.people_alt),
-                Text(
-                  " Friends recent poops",
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-              ],
-            ),
-            IconButton(onPressed: () {}, icon: Icon(Icons.arrow_forward))
-          ],
-        ),
       ),
     ]);
   }
