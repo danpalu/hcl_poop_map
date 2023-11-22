@@ -78,7 +78,7 @@ Future<Account> logIn(String username, String password) async {
       .from("users")
       .select()
       .eq("username", username)
-      .eq("password", password)
+      .eq("password", hash)
       .select();
 
   final acc =

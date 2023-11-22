@@ -843,6 +843,7 @@ class _AddPoopState extends State<AddPoop> {
       appBar: AppBar(
         title: Text("Add poop 💩"),
       ),
+      body: Text(lastPosition.toString()),
     );
   }
 }
