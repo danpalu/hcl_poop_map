@@ -428,6 +428,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int selectedPage = 0;
+  bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -452,19 +453,26 @@ class _HomePageState extends State<HomePage> {
         }),
       ),
       floatingActionButton: selectedPage == 2
-          ? Container()
-          : FloatingActionButton(
+          ? null
+          : FloatingActionButton.extended(
               onPressed: () async {
+                setState(() {
+                  isLoading = true;
+                });
                 final navigator = Navigator.of(context);
                 await getPosition();
                 lastPosition = await getLastLocation();
-                navigator.push(
+                await navigator.push(
                   MaterialPageRoute(
                     builder: (context) => AddPoop(),
                   ),
                 );
+                setState(() {
+                  isLoading = false;
+                });
               },
-              child: Icon(Icons.add),
+              label: Text("Add poop"),
+              icon: isLoading ? CircularProgressIndicator() : Icon(Icons.add),
             ),
     );
   }
@@ -513,61 +521,82 @@ class _HomeFeedState extends State<HomeFeed> {
                 : numberShown;
             for (var i = 0; i < length; i++) {
               final temp = friendsPoop[i];
-              final poopCard = Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.person_4,
-                            size: 70,
-                          ),
-                          SizedBox(
-                            width: 12,
-                          ),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            mainAxisSize: MainAxisSize.max,
-                            children: [
-                              Text(
-                                  "${DateTime.now().difference(temp.time).inMinutes} minutes ago"),
-                              Text(temp.user.displayname),
-                            ],
-                          ),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          for (int i = 0; i < 5; i++)
-                            (i < temp.rating)
-                                ? Icon(
-                                    Icons.star,
-                                    color: Colors.amber,
-                                  )
-                                : Icon(
-                                    Icons.star_border,
-                                    color: Colors.amber,
-                                  )
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-              list.add(poopCard);
+              final newPoopCard = PoopCard(poop: temp);
+              list.add(newPoopCard);
             }
 
             return Column(
               children: list,
             );
           }
-          return CircularProgressIndicator();
+          return PoopCard(
+            poop: Poop(
+              LatLng(0, 0),
+              0,
+              Account(0, "", ""),
+              DateTime.now(),
+            ),
+          );
         },
       ),
     ]);
+  }
+}
+
+class PoopCard extends StatelessWidget {
+  const PoopCard({
+    super.key,
+    required this.poop,
+  });
+
+  final Poop poop;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.person_4,
+                  size: 70,
+                ),
+                SizedBox(
+                  width: 12,
+                ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    Text(
+                        "${DateTime.now().difference(poop.time).inMinutes} minutes ago"),
+                    Text(poop.user.displayname),
+                  ],
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                for (int i = 0; i < 5; i++)
+                  (i < poop.rating)
+                      ? Icon(
+                          Icons.star,
+                          color: Colors.amber,
+                        )
+                      : Icon(
+                          Icons.star_border,
+                          color: Colors.amber,
+                        )
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -843,7 +872,47 @@ class _AddPoopState extends State<AddPoop> {
       appBar: AppBar(
         title: Text("Add poop 💩"),
       ),
-      body: Text(lastPosition.toString()),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              clipBehavior: Clip.antiAlias,
+              height: 200,
+              child: FlutterMap(
+                  options: MapOptions(
+                    interactionOptions: InteractionOptions(
+                      flags: InteractiveFlag.none,
+                    ),
+                    initialCenter: lastPosition,
+                    initialZoom: 15,
+                  ),
+                  children: [
+                    TileLayer(
+                      maxNativeZoom: 20,
+                      urlTemplate:
+                          "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                      fallbackUrl: "",
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: lastPosition,
+                          width: 80,
+                          height: 80,
+                          child: Text("💩",
+                              textScaleFactor: 2, textAlign: TextAlign.center),
+                        ),
+                      ],
+                    ),
+                  ]),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

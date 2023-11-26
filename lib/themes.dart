@@ -7,13 +7,15 @@ ThemeData lightTheme = ThemeData(
   useMaterial3: true,
   brightness: Brightness.light,
   colorSchemeSeed: themeColor,
-  navigationBarTheme: NavigationBarThemeData(indicatorColor: secondaryColor),
+  //colorScheme: lightColorScheme,
+  //navigationBarTheme: NavigationBarThemeData(indicatorColor: secondaryColor),
 );
 
 ThemeData darkTheme = ThemeData(
   useMaterial3: true,
   brightness: Brightness.dark,
   colorSchemeSeed: themeColor,
+  // colorScheme: darkColorScheme,
 );
 
 const lightColorScheme = ColorScheme(
