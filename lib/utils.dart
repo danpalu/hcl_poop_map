@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:hcl_poop_map/main.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,7 +24,7 @@ class Poop {
 }
 
 Future<Account> newUser(String username, String password) async {
-  String hash = Crypt.sha256(password).toString();
+  String hash = Crypt.sha256(password, salt: "salttilpoopmap").toString();
   var user = await supabase.from("users").insert({
     "username": username,
     "password": hash,
@@ -73,7 +75,7 @@ Future<void> saveLogIn() async {
 }
 
 Future<Account> logIn(String username, String password) async {
-  String hash = Crypt.sha256(password).toString();
+  String hash = Crypt.sha256(password, salt: "salttilpoopmap").toString();
   final data = await supabase
       .from("users")
       .select()
@@ -195,9 +197,18 @@ Future<Position> getPosition() async {
   return position;
 }
 
-Future<List<Poop>> getFriendsPoops(Account currentUser) async {
+Future<List<Poop>> getFriendsPoops(
+    Account currentUser, List<Account> friendlist) async {
+  List<int> frienduids = List.empty(growable: true);
+  for (var element in friendlist) {
+    frienduids.add(element.uid);
+  }
   List<Poop> poops = List.empty(growable: true);
-  final data = await supabase.from("poops_view").select().order("time");
+  final data = await supabase
+      .from("poops_view")
+      .select()
+      .in_('uid', frienduids)
+      .order("time");
   for (var poop in data) {
     final temp = Poop(
         LatLng(
@@ -211,4 +222,17 @@ Future<List<Poop>> getFriendsPoops(Account currentUser) async {
   }
 
   return poops;
+}
+
+String timeAgo(DateTime time) {
+  final dif = DateTime.now().difference(time);
+  final days = dif.inDays;
+  final hours = dif.inHours % 24;
+  final minutes = dif.inMinutes % 60;
+  String temp = "";
+  if (days > 0) temp += "$days days ";
+  if (hours > 0) temp += "$hours hours ";
+  if (minutes > 0) temp += "$minutes minutes";
+  temp += " ago";
+  return temp;
 }

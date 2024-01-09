@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'themes.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +30,7 @@ late Account currentUser;
 List<Account> follows = List.empty(growable: true);
 List<Poop> friendsPoop = List.empty(growable: true);
 LatLng lastPosition = LatLng(0, 0);
+List<Marker> poopMarkers = List.empty(growable: true);
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
@@ -460,19 +462,15 @@ class _HomePageState extends State<HomePage> {
                   isLoading = true;
                 });
                 final navigator = Navigator.of(context);
-                await getPosition();
                 lastPosition = await getLastLocation();
                 await navigator.push(
                   MaterialPageRoute(
                     builder: (context) => AddPoop(),
                   ),
                 );
-                setState(() {
-                  isLoading = false;
-                });
               },
               label: Text("Add poop"),
-              icon: isLoading ? CircularProgressIndicator() : Icon(Icons.add),
+              icon: Icon(Icons.add),
             ),
     );
   }
@@ -498,9 +496,9 @@ class _HomeFeedState extends State<HomeFeed> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(Icons.explore),
+                Icon(Icons.group),
                 Text(
-                  " Explore",
+                  " Friends poops",
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ],
@@ -510,7 +508,7 @@ class _HomeFeedState extends State<HomeFeed> {
         ),
       ),
       FutureBuilder(
-        future: getPoops(),
+        future: getFriendsPoops(currentUser, follows),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             friendsPoop = snapshot.data!;
@@ -600,44 +598,103 @@ class PoopCard extends StatelessWidget {
   }
 }
 
-class MapView extends StatelessWidget {
+class MapView extends StatefulWidget {
   const MapView({super.key});
 
   @override
+  State<MapView> createState() => _MapViewState();
+}
+
+class _MapViewState extends State<MapView> {
+  @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        FlutterMap(
-            options: MapOptions(
-              interactionOptions: InteractionOptions(
-                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-              ),
-            ),
-            children: [
-              TileLayer(
-                maxNativeZoom: 20,
-                urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                fallbackUrl: "",
-              ),
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: LatLng(57.0469, 9.9431),
-                    width: 80,
-                    height: 80,
-                    child: Text("💩",
-                        textScaleFactor: 2, textAlign: TextAlign.center),
+    return FutureBuilder(
+      future: getPoops(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          friendsPoop = snapshot.data!;
+          for (var element in friendsPoop) {
+            poopMarkers.add(
+              Marker(
+                point: element.location,
+                child: GestureDetector(
+                  onTap: () {
+                    showModalBottomSheet(
+                      showDragHandle: true,
+                      context: context,
+                      builder: (context) {
+                        return SizedBox(
+                          height: 150,
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(element.user.username),
+                                  Text(timeAgo(element.time)),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      for (int i = 0; i < 5; i++)
+                                        (i < element.rating)
+                                            ? Icon(
+                                                Icons.star,
+                                                color: Colors.amber,
+                                              )
+                                            : Icon(
+                                                Icons.star_border,
+                                                color: Colors.amber,
+                                              )
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  child: Center(
+                    child: Text(
+                      "💩",
+                      textScaleFactor: 2,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ],
+                ),
+                alignment: Alignment.center,
+                height: 50,
+                width: 50,
               ),
-            ]),
-        FilledButton(
-          onPressed: () async {
-            friendsPoop = await getPoops();
-          },
-          child: Text("Load poop list"),
-        ),
-      ],
+            );
+          }
+          return FlutterMap(
+              options: MapOptions(
+                initialCenter: LatLng(57, 10),
+                interactionOptions: InteractionOptions(
+                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  maxNativeZoom: 20,
+                  urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                  fallbackUrl: "",
+                ),
+                MarkerLayer(markers: poopMarkers)
+              ]);
+        }
+        return SizedBox.expand(
+          child: ColoredBox(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -866,6 +923,8 @@ class AddPoop extends StatefulWidget {
 }
 
 class _AddPoopState extends State<AddPoop> {
+  int poopRating = 3;
+  LatLng poopPosition = LatLng(0, 0);
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -877,38 +936,100 @@ class _AddPoopState extends State<AddPoop> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              clipBehavior: Clip.antiAlias,
-              height: 200,
-              child: FlutterMap(
-                  options: MapOptions(
-                    interactionOptions: InteractionOptions(
-                      flags: InteractiveFlag.none,
-                    ),
-                    initialCenter: lastPosition,
-                    initialZoom: 15,
-                  ),
-                  children: [
-                    TileLayer(
-                      maxNativeZoom: 20,
-                      urlTemplate:
-                          "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                      fallbackUrl: "",
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: lastPosition,
-                          width: 80,
-                          height: 80,
-                          child: Text("💩",
-                              textScaleFactor: 2, textAlign: TextAlign.center),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                clipBehavior: Clip.antiAlias,
+                height: 200,
+                child: FutureBuilder(
+                  future: getPosition(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      poopPosition = LatLng(
+                          snapshot.data!.latitude, snapshot.data!.longitude);
+                      return FlutterMap(
+                          options: MapOptions(
+                            interactionOptions: InteractionOptions(
+                              flags: InteractiveFlag.none,
+                            ),
+                            initialCenter: lastPosition,
+                            initialZoom: 15,
+                          ),
+                          children: [
+                            TileLayer(
+                              maxNativeZoom: 20,
+                              urlTemplate:
+                                  "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                              fallbackUrl: "",
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: lastPosition,
+                                  width: 80,
+                                  height: 80,
+                                  child: Text("💩",
+                                      textScaleFactor: 2,
+                                      textAlign: TextAlign.center),
+                                ),
+                              ],
+                            ),
+                          ]);
+                    }
+                    return SizedBox.expand(
+                      child: ColoredBox(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        child: Center(
+                          child: CircularProgressIndicator(),
                         ),
-                      ],
-                    ),
-                  ]),
+                      ),
+                    );
+                  },
+                )),
+          ),
+          Text("Rating:"),
+          RatingBar(
+            initialRating: poopRating.toDouble(),
+            glow: false,
+            allowHalfRating: false,
+            minRating: 1,
+            tapOnlyMode: false,
+            ratingWidget: RatingWidget(
+              full: Icon(
+                Icons.star,
+                color: Colors.amber,
+              ),
+              half: Icon(
+                Icons.star_half,
+                color: Colors.amber,
+              ),
+              empty: Icon(
+                Icons.star_outline,
+                color: Colors.amber,
+              ),
+            ),
+            onRatingUpdate: (rating) {
+              setState(() {
+                poopRating = rating.toInt();
+              });
+            },
+          ),
+          Expanded(child: SizedBox()),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: FilledButton(
+              onPressed: () async {
+                final nagivator = Navigator.of(context);
+                Poop newPoop = Poop(
+                  poopPosition,
+                  poopRating,
+                  currentUser,
+                  DateTime.now(),
+                );
+                await addPoop(newPoop);
+                nagivator.pop();
+              },
+              child: Text("Save"),
             ),
           ),
         ],
