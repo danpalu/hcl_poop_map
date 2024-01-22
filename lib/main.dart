@@ -31,6 +31,8 @@ List<Account> follows = List.empty(growable: true);
 List<Poop> friendsPoop = List.empty(growable: true);
 LatLng lastPosition = LatLng(0, 0);
 List<Marker> poopMarkers = List.empty(growable: true);
+int selectedView = 0;
+int selectedPage = 0;
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
@@ -429,13 +431,40 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int selectedPage = 0;
   bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Poop Map 💩"), centerTitle: true),
+      appBar: selectedPage == 1
+          ? AppBar(
+              title: DropdownMenu(
+                onSelected: (value) {
+                  setState(() {
+                    selectedView = value!;
+                  });
+                },
+                initialSelection: selectedView,
+                enableSearch: false,
+                leadingIcon:
+                    selectedView == 0 ? Icon(Icons.group) : Icon(Icons.public),
+                inputDecorationTheme:
+                    InputDecorationTheme(border: InputBorder.none),
+                dropdownMenuEntries: [
+                  DropdownMenuEntry(
+                    value: 0,
+                    label: "Friends only",
+                    leadingIcon: Icon(Icons.group),
+                  ),
+                  DropdownMenuEntry(
+                    value: 1,
+                    label: "Everyone",
+                    leadingIcon: Icon(Icons.public),
+                  ),
+                ],
+              ),
+            )
+          : AppBar(title: Text("Poop Map 💩"), centerTitle: true),
       body: switch (selectedPage) {
         0 => HomeFeed(),
         1 => MapView(),
@@ -451,6 +480,7 @@ class _HomePageState extends State<HomePage> {
         labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         selectedIndex: selectedPage,
         onDestinationSelected: (value) => setState(() {
+          if (selectedPage == 1) poopMarkers.clear();
           selectedPage = value;
         }),
       ),
@@ -498,7 +528,7 @@ class _HomeFeedState extends State<HomeFeed> {
               children: [
                 Icon(Icons.group),
                 Text(
-                  " Friends poops",
+                  " Friends' poops",
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ],
@@ -552,46 +582,56 @@ class PoopCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.person_4,
-                  size: 70,
-                ),
-                SizedBox(
-                  width: 12,
-                ),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  mainAxisSize: MainAxisSize.max,
-                  children: [
-                    Text(
-                        "${DateTime.now().difference(poop.time).inMinutes} minutes ago"),
-                    Text(poop.user.displayname),
-                  ],
-                ),
-              ],
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ShowPoopDetails(poop: poop),
             ),
-            Row(
-              children: [
-                for (int i = 0; i < 5; i++)
-                  (i < poop.rating)
-                      ? Icon(
-                          Icons.star,
-                          color: Colors.amber,
-                        )
-                      : Icon(
-                          Icons.star_border,
-                          color: Colors.amber,
-                        )
-              ],
-            ),
-          ],
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.person_4,
+                    size: 70,
+                  ),
+                  SizedBox(
+                    width: 12,
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      Text(
+                          "${DateTime.now().difference(poop.time).inMinutes} minutes ago"),
+                      Text(poop.user.displayname),
+                    ],
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  for (int i = 0; i < 5; i++)
+                    (i < poop.rating)
+                        ? Icon(
+                            Icons.star,
+                            color: Colors.amber,
+                          )
+                        : Icon(
+                            Icons.star_border,
+                            color: Colors.amber,
+                          )
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -609,9 +649,12 @@ class _MapViewState extends State<MapView> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: getPoops(),
+      future: selectedView == 0
+          ? getFriendsPoops(currentUser, follows)
+          : getPoops(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
+          poopMarkers.clear();
           friendsPoop = snapshot.data!;
           for (var element in friendsPoop) {
             poopMarkers.add(
@@ -624,13 +667,14 @@ class _MapViewState extends State<MapView> {
                       context: context,
                       builder: (context) {
                         return SizedBox(
-                          height: 150,
+                          height: 220,
                           child: Center(
                             child: Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: const EdgeInsets.all(16.0),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
+                                  Icon(Icons.person_3, size: 75),
                                   Text(element.user.username),
                                   Text(timeAgo(element.time)),
                                   Row(
@@ -648,6 +692,30 @@ class _MapViewState extends State<MapView> {
                                               )
                                     ],
                                   ),
+                                  Expanded(
+                                    child: SizedBox(),
+                                  ),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        icon: Icon(Icons.close),
+                                        label: Text("Close"),
+                                      ),
+                                      FilledButton.icon(
+                                        onPressed: () async {
+                                          await newFollow(
+                                              currentUser, element.user.uid);
+                                        },
+                                        icon: Icon(Icons.person_add),
+                                        label: Text("Follow"),
+                                      ),
+                                    ],
+                                  )
                                 ],
                               ),
                             ),
@@ -1027,9 +1095,114 @@ class _AddPoopState extends State<AddPoop> {
                   DateTime.now(),
                 );
                 await addPoop(newPoop);
+                setState(() {
+                  friendsPoop.add(newPoop);
+                });
                 nagivator.pop();
               },
               child: Text("Save"),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ShowPoopDetails extends StatefulWidget {
+  const ShowPoopDetails({super.key, required this.poop});
+  final Poop poop;
+
+  @override
+  State<ShowPoopDetails> createState() => _ShowPoopDetailsState();
+}
+
+class _ShowPoopDetailsState extends State<ShowPoopDetails> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("${widget.poop.user.displayname}'s poop"),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              clipBehavior: Clip.antiAlias,
+              height: 400,
+              child: FlutterMap(
+                options: MapOptions(
+                  interactionOptions: InteractionOptions(
+                    flags: InteractiveFlag.none,
+                  ),
+                  initialCenter: widget.poop.location,
+                  initialZoom: 15,
+                ),
+                children: [
+                  TileLayer(
+                    maxNativeZoom: 20,
+                    urlTemplate:
+                        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    fallbackUrl: "",
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: widget.poop.location,
+                        width: 80,
+                        height: 80,
+                        child: Text("💩",
+                            textScaleFactor: 2, textAlign: TextAlign.center),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (int i = 0; i < 5; i++)
+                  (i < widget.poop.rating)
+                      ? Icon(
+                          Icons.star,
+                          color: Colors.amber,
+                          size: 50,
+                        )
+                      : Icon(
+                          Icons.star_border,
+                          color: Colors.amber,
+                          size: 50,
+                        )
+              ],
+            ),
+          ),
+          Text(
+            timeAgo(widget.poop.time),
+          ),
+          Expanded(child: SizedBox()),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Does not work yet :((()))"),
+                    ),
+                  );
+                  Navigator.pop(context);
+                });
+              },
+              label: Text("Show on map"),
+              icon: Icon(Icons.map),
             ),
           ),
         ],
