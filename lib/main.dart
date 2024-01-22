@@ -610,8 +610,7 @@ class PoopCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     mainAxisSize: MainAxisSize.max,
                     children: [
-                      Text(
-                          "${DateTime.now().difference(poop.time).inMinutes} minutes ago"),
+                      Text(timeAgo(poop.time)),
                       Text(poop.user.displayname),
                     ],
                   ),

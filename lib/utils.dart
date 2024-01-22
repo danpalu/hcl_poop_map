@@ -231,8 +231,11 @@ String timeAgo(DateTime time) {
   final minutes = dif.inMinutes % 60;
   String temp = "";
   if (days > 0) temp += "$days days ";
-  if (hours > 0) temp += "$hours hours ";
-  if (minutes > 0) temp += "$minutes minutes";
+  if (hours > 0) temp += "$hours hours";
+  //if (minutes > 0) temp += "$minutes minutes";
   temp += " ago";
+  if (dif.inHours < 1) {
+    return "Less than 1 hour ago";
+  }
   return temp;
 }
